@@ -49,7 +49,7 @@ def get_lines(roi):
     return lines
 
 
-def get_words(line):
+def get_words(line, debug=False):
     # Word Segmentation from single line
     transposed = np.transpose(line)
 
@@ -60,7 +60,15 @@ def get_words(line):
         if color_level[i] > 250:
             begin = i
             while i < len(color_level) and color_level[i] > 250:
-                i += 1
+                if i + 2 < len(color_level) and color_level[i+1] < 250:
+                    if color_level[i+2] > 250:
+                        i += 2
+                    else:
+                        i += 1
+                else:
+                    i += 1
+            if debug:
+                print(i)
             cuts.append([begin, i])
         else:
             i += 1
@@ -71,3 +79,18 @@ def get_words(line):
         words.append(word_horizon)
 
     return words
+
+
+def get_intersect(row):
+    cuts = []
+    i = 0
+    while i < len(row):
+        if row[i] > 180:
+            begin = i
+            while i < len(row) and row[i] > 180:
+                i += 1
+            cuts.append([begin, i])
+        else:
+            i += 1
+    points = np.array([int(np.sum(line)/len(line)) for line in cuts])
+    return points
