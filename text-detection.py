@@ -14,8 +14,7 @@ line = cuts[5]
 single = roi[line[0][1]: line[1][1], line[0][0]: line[1][0]]
 resized = scanner.resize(single)
 words = scanner.get_words(resized)
-
-word = words[0]
+word = words[10]
 
 # custom matra detection
 word_roi = resized[word[0][1]: word[1][1], word[0][0]: word[1][0]]
@@ -33,45 +32,63 @@ size = word_roi.shape
 ub, lb = word[0][1], word[1][1]
 
 top_segment = word_roi[0:min(matra_lines)-1, 0: size[1]]
-top_segment_height = top_segment.shape[0]
 bottom_segment = word_roi[max(matra_lines)+1: size[1], 0: size[1]]
-# kernel = np.ones((3, 3), np.uint8)/10
+
+# increasing/decreasing the thickness of lines if needed
+kernel = np.ones((2, 2), np.uint8)/10
 # top_segment = cv2.dilate(top_segment, kernel, iterations=1)
+# bottom_segment = cv2.erode(bottom_segment, kernel, iterations=1)
 
-top_matras = scanner.get_words(top_segment)
-top_intersection = scanner.get_intersect(top_segment[top_segment_height-2])
-# print(top_matras)
+top_matras = scanner.extract_upper_matra(top_segment)
 
-characters = scanner.get_words(bottom_segment)
+characters = scanner.get_words(bottom_segment, one_pxl_exempt=False)
 
-blank_image = np.zeros((lb-ub, 200), np.uint8)
+# checking characters with complexity
+# checker = characters[8]
+# full_char = bottom_segment[0: bottom_segment.shape[0], checker[0][0]: checker[1][0]]
+# char_1 = bottom_segment[int(bottom_segment.shape[0]*0.70): bottom_segment.shape[0], checker[0][0]: checker[1][0]]
+# contours, hierarchy = cv2.findContours(char_1, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+# if len(contours) > 1:
+#     full_char = cv2.erode(full_char, kernel, iterations=1)
+#     spcl_chars = scanner.get_words(full_char, one_pxl_exempt=False)
+#     print(len(spcl_chars))
+
 
 char_images = []
 
-# print(blank_image.shape)
+# create all the character image
 for idx, char in enumerate(characters):
+    char_ub = min(matra_lines)
     sb = char[0][0]
     eb = char[1][0]
-    this_char = word_roi[ub: lb, sb: eb]
-    temp_img = np.zeros((lb-ub, 30), np.uint8)
-    temp_img[ub: lb, 0: eb-sb] = this_char
+    temp_img = np.zeros((lb - ub, 40), np.uint8)
+
+    this_char = word_roi[char_ub: lb, sb: eb]
+    if this_char.shape[1] > this_char.shape[0]:
+        print(idx)
+        chars = scanner.divide_complex_word(this_char)
+        print(len(chars))
+
+    temp_img[min(matra_lines): lb, 0: eb-sb] = this_char
+    for matra in top_matras:
+        if sb < matra.intersection < eb:
+            points = matra.points
+            this_matra = word_roi[points[0][1]: points[1][1], points[0][0]: points[1][0]]
+            temp_img[points[0][1]: points[1][1], 0: points[1][0] - points[0][0]] = this_matra
     char_images.append(temp_img)
-    # blank_image[ub: lb, idx*30: (idx+1)*30] = temp_img
-    # cv2.line(word_roi, (sb, ub), (sb, lb), (255, 255, 255), 1)
-    # cv2.line(word_roi, (eb, ub), (eb, lb), (255, 255, 255), 1)
 
 # reversed_level = color_level[::-1]  # reverse the array to plot on graph
 
-# all characteres loop plot
+# all characters loop plot
 plt.figure(1)
-for idx in range(len(char_images)):
-    print(3, int(idx/3)+1, idx % 3 + 1)
-    plt.subplot(3, int(idx/3)+1, idx % 3 + 1)
-    plt.imshow(char_images[idx])
+for idx in range(9):
+    if idx < len(char_images):
+        plt.subplot(4, 3, idx + 1)
+        plt.imshow(char_images[idx])
 
-# plt.figure(1)
-# plt.subplot(211)
-# plt.imshow(char_images[1])
+
+plt.subplot(4, 3, 10)
+plt.imshow(word_roi)
 # plt.subplot(212)
 # plt.imshow(resized)
 # plt.barh(np.arange(len(reversed_level)), reversed_level)

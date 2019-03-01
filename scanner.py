@@ -49,7 +49,7 @@ def get_lines(roi):
     return lines
 
 
-def get_words(line, debug=False):
+def get_words(line, one_pxl_exempt=True, debug=False):
     # Word Segmentation from single line
     transposed = np.transpose(line)
 
@@ -60,7 +60,7 @@ def get_words(line, debug=False):
         if color_level[i] > 250:
             begin = i
             while i < len(color_level) and color_level[i] > 250:
-                if i + 2 < len(color_level) and color_level[i+1] < 250:
+                if one_pxl_exempt and i + 2 < len(color_level) and color_level[i+1] < 250:
                     if color_level[i+2] > 250:
                         i += 2
                     else:
@@ -81,6 +81,30 @@ def get_words(line, debug=False):
     return words
 
 
+def divide_complex_word(img):
+    kernel = np.ones((2, 2), np.uint8) / 10
+    full_char = cv2.erode(img, kernel, iterations=1)
+    spcl_chars = get_words(full_char, one_pxl_exempt=False)
+    return spcl_chars
+
+
+def extract_upper_matra(img):
+    matras = get_words(img)
+    height = img.shape[0]
+
+    matra_obj = []
+
+    for matra in matras:
+        temp = Matra()
+        temp.points = matra
+        roi = img[matra[0][1]:matra[1][1], matra[0][0]: matra[1][0]]
+        points = matra[0][0] + get_intersect(roi[height-2])
+        temp.intersection = points[0] if len(points) > 0 else None
+        matra_obj.append(temp)
+
+    return matra_obj
+
+
 def get_intersect(row):
     cuts = []
     i = 0
@@ -94,3 +118,10 @@ def get_intersect(row):
             i += 1
     points = np.array([int(np.sum(line)/len(line)) for line in cuts])
     return points
+
+
+class Matra:
+    def __init__(self):
+        self.points = list
+        self.intersection = None
+
