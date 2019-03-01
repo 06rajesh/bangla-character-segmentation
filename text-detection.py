@@ -9,7 +9,7 @@ img = cv2.imread('samples/img_4.png')
 roi = scanner.get_region_of_interest(img)
 
 cuts = scanner.get_lines(roi)
-line = cuts[5]
+line = cuts[4]
 
 single = roi[line[0][1]: line[1][1], line[0][0]: line[1][0]]
 resized = scanner.resize(single)
@@ -42,6 +42,21 @@ kernel = np.ones((2, 2), np.uint8)/10
 top_matras = scanner.extract_upper_matra(top_segment)
 
 characters = scanner.get_words(bottom_segment, one_pxl_exempt=False)
+print(characters)
+
+for idx, char in enumerate(characters):
+    this_char = bottom_segment[0: bottom_segment.shape[1], char[0][0]: char[1][0]]
+    if this_char.shape[1] > (this_char.shape[0] + len(matra_lines)):
+        chars = scanner.divide_complex_word(this_char)
+
+        if len(chars) > 1:
+            del characters[idx]
+            cnt = 0
+            for segment in chars:
+                new_segment = [(char[0][0] + segment[0][0], char[0][1]), (char[0][0] + segment[1][0], char[1][1])]
+                characters.insert(idx + cnt, new_segment)
+                cnt += 1
+
 
 # checking characters with complexity
 # checker = characters[8]
@@ -64,14 +79,14 @@ for idx, char in enumerate(characters):
     temp_img = np.zeros((lb - ub, 40), np.uint8)
 
     this_char = word_roi[char_ub: lb, sb: eb]
-    if this_char.shape[1] > this_char.shape[0]:
-        print(idx)
-        chars = scanner.divide_complex_word(this_char)
-        print(len(chars))
+    # if this_char.shape[1] > this_char.shape[0]:
+    #     print(idx)
+    #     chars = scanner.divide_complex_word(this_char)
+    #     print(len(chars))
 
     temp_img[min(matra_lines): lb, 0: eb-sb] = this_char
     for matra in top_matras:
-        if sb < matra.intersection < eb:
+        if sb <= matra.intersection <= eb:
             points = matra.points
             this_matra = word_roi[points[0][1]: points[1][1], points[0][0]: points[1][0]]
             temp_img[points[0][1]: points[1][1], 0: points[1][0] - points[0][0]] = this_matra
